@@ -43,19 +43,16 @@ class CityDriving:
         self.speed = 0.5
         self.h, err = cv2.findHomography(np_pts_image, np_pts_ground)
         self.bridge = CvBridge()
-        self.drive_cmd = AckermannDriveStamped()
-
+        
         # Publishers
-        self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=1)
-        self.debug_pub = rospy.Publisher("/debugging", String, queue_size=1)
-        self.image_pub = rospy.Publisher("i_see", Image, queue_size=1)
-        self.ang_pub = rospy.Publisher("ang_here", Float32, queue_size=1)
+        self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=10)
+        self.debug_pub = rospy.Publisher("/debugging", String, queue_size=10)
+        self.image_pub = rospy.Publisher("i_see", Image, queue_size=10)
+        self.ang_pub = rospy.Publisher("ang_here", Float32, queue_size=10)
 
         # Subscribers
         self.image_sub = rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.follow_line)
         
-        
-
     def follow_line(self,image_msg):
         img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         bw_img = self.cd_color_segmentation(img)
@@ -63,10 +60,9 @@ class CityDriving:
         rel_x = self.find_rel_x(orange_locations)
         ang = self.PPController(rel_x)
         self.ang_pub.publish(ang)
-        self.drive_cmd.header.stamp = rospy.Time.now()
-        self.drive_cmd.header.frame_id = 'base_link'
-        self.drive_cmd.drive.speed = self.speed
-        self.drive_cmd.drive.steering_angle = ang
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.drive.speed = self.speed
+        drive_cmd.drive.steering_angle = ang
         self.drive_pub.publish(self.drive_cmd)
 
     def cd_color_segmentation(self, img, template="optional"):
@@ -106,6 +102,9 @@ class CityDriving:
         return ang
 
 if __name__=="__main__":
-    rospy.init_node("city_driving")
-    pf = CityDriving()
-    rospy.spin()
+    try:
+        rospy.init_node("CityDriving", anonymous=True)
+        CityDriving()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
