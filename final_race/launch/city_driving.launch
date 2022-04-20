@@ -1,0 +1,6 @@
+<launch>
+	<node pkg="final_race" type="city_driving.py" name="City_Driving" output="screen">
+		<param name="pub_topic" value="/odom"/>
+        <param name="sub_topic" value="/odom"/>
+	</node>
+</launch>
