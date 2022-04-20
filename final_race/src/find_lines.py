@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 """
 @file hough_lines.py (taken from https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html)
 @brief This program demonstrates line finding with the Hough transform
@@ -30,50 +30,54 @@ def find_lines(img):
                         all lines detected in the image
 
     """
-    # Edge detection
+    # crop the upper 1/3 of the image to black
+    shape = img.shape
+	# crop_start = int(5*shape[0]/6)
+	# for i in range(crop_start,shape[0]):
+	# 	orange_filter[i,:] =  0
+    for i in range(0,int(shape[0])/2):
+		img[i,:] = 0
+
+
+    ##filtering for white
+    hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+    #define range of white
+    sensitivity = 15
+    lower_white = np.array([0,0,255-sensitivity])
+    upper_white = np.array([255,sensitivity,255])
+
+    #threshold the hsv image to get only white
+    mask = cv.inRange(hsv_img, lower_white, upper_white)
+
+    #bitwase-AND mask and original img
+    res  = cv.bitwise_and(img, img, mask = mask)
+
+    ##end white filtering
     
+    gray_img = cv.cvtColor(res, cv.COLOR_BGR2GRAY)
+
     #img, threshold 1, threshold 2, apertureSize (for the Sobel operator)
-    edges = cv.Canny(img, 50, 200, apertureSize = 3)
+    edges = cv.Canny(gray_img, 50, 200, apertureSize = 3)
     
     # Copy edges to the images that will display the results in BGR
-    cedges = cv.cvtColor(edges, cv.COLOR_GRAY2BGR)
-    cedgesP = np.copy(cedges)
-
-    #edges -> output of edge detector
-    rho = 1 #resolution param in pixels
-    theta = np.pi/180 #resolution param (1 degree )
-    min_intersections = 150 #number of intersections to detect a line
-    lines = cv.HoughLines(edges, 1, np.pi / 180, 150, None, 0, 0)
+    cedgesP = cv.cvtColor(edges, cv.COLOR_GRAY2BGR)
     
-    #drawing the lines
-
     lines_returned = []
-    if lines is not None:
-        for i in range(0, len(lines)):
-            rho = lines[i][0][0]
-            theta = lines[i][0][1]
-            a = math.cos(theta)
-            b = math.sin(theta)
-            x0 = a * rho
-            y0 = b * rho
-            pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
-            pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-            lines_returned.append((pt1,pt2)) #start point, end point
-            cv.line(cedges, pt1, pt2, (0,0,255), 3, cv.LINE_AA)
-    
-    
     #probabilitistic transform
-    linesP = cv.HoughLinesP(edges, 1, np.pi / 180, 50, None, 50, 10)
+    linesP = cv.HoughLinesP(edges, 1, np.pi / 180, 200, None, 50, 10)
     
     if linesP is not None:
         for i in range(0, len(linesP)):
             l = linesP[i][0]
-            cv.line(cedgesP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+            lines_returned.append(((l[0], l[1]), (l[2], l[3])))
+            #cv.line(cedgesP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
     
-    cv.imshow("Source", img)
-    cv.imshow("Detected Lines (in red) - Standard Hough Line Transform", cedges)
-    cv.imshow("Detected Lines (in red) - Probabilistic Line Transform", cedgesP)
+    # image_print([img, cedges])
+    # cv.imshow("Source", img)
+    # cv.imshow("Detected Lines (in red) - Standard Hough Line Transform", cedges)
+    # cv.imshow("Detected Lines (in red) - Probabilistic Line Transform", cedgesP)
     
-    cv.waitKey()
+    # cv.waitKey()
 
     return sorted(lines_returned,key = lambda x: x[0][0])

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 @file hough_lines.py (taken from https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html)
 @brief This program demonstrates line finding with the Hough transform
@@ -38,24 +39,34 @@ class HoughTransform():
 
     def image_callback(self, image_msg):
         # publishing pixels in the (u,v) frame (not converted to car frame
-
-
         image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
 
         #[(start_point,end_point)]
-        lines = find_lines(image)
-
-
+        lines = find_lines.find_lines(image)
         goal_point = ConeLocationPixel()
-        goal_point.u, goal_point.v = self.goal_point_of_lane(3,lines)
+        goal_point.u, goal_point.v = self.goal_point_of_lane(0,lines)
         self.goal_point_pub.publish(goal_point)
 
-        debug_msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
+        self.pub_debug_img(image, lines, goal_point)
+
+
+    def pub_debug_img(self, image, lines, goal_point):
+        # plot the detected lines and goal points in the images
+        blue = (255,0,0)
+        green= (0,255,0)
+        red  = (0,0,255)
+        radius = 20
+        thickness = 2
+        debug_img = cv2.circle(image, (goal_point.u, goal_point.v), radius, blue, thickness)
+        for line in lines:
+            debug_img = cv2.line(debug_img, line[0], line[1], green, thickness)
+        debug_msg = self.bridge.cv2_to_imgmsg(debug_img, "bgr8")
         self.debug_pub.publish(debug_msg)
 
-    def goal_point_of_lane(lane_number, lines):
+    def goal_point_of_lane(self, lane_number, lines):
         left_bound = lines[lane_number]
         right_bound = lines[lane_number+1]
+        # rospy.loginfo("goal_point func")
 
         #left_bound[1] is end point [0] -> x value
         x_goal = (left_bound[1][0] + right_bound[1][0])//2
