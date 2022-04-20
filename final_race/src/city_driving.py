@@ -10,15 +10,27 @@ from std_msgs.msg import String, Float32
 from sensor_msgs.msg import Image
 
 
-PTS_IMAGE_PLANE = [[526.0, 286.0],
-                   [240.0, 287.0],
-                   [292.0, 243.0],
-                   [442.0, 243.0]]
+PTS_IMAGE_PLANE = [[343.0, 363.0],
+                   [139.0, 276.0],
+                   [347.0, 281.0],
+                   [562.0, 291.0],
+                   [229.0, 238.0],
+                   [349.0, 243.0],
+                   [472.0, 246.0],
+                   [263.0, 223.0],
+                   [347.0, 224.0],
+                   [432.0, 227.0]]
 
-PTS_GROUND_PLANE = [[23.62, -9.75],
-                    [23.62, 9.75],
-                    [43.12, 9.75],
-                    [43.12, -9.75]]
+PTS_GROUND_PLANE = [[8.4, 0.0],
+                   [21.25, 17.25],
+                   [21.25, 0.0],
+                   [21.25, -17.25],
+                   [42.5, 17.25],
+                   [42.5, 0.0],
+                   [42.5, -17.25],
+                   [63.75, 17.25],
+                   [63.75, 0.0],
+                   [63.75, -17.25]]
 
 METERS_PER_INCH = 0.0254
 
@@ -38,9 +50,10 @@ class CityDriving:
 
         drive_topic = rospy.get_param("~drive_topic", "/vesc/low_level/ackermann_cmd_mux/input/navigation")
         self.wheelbase_length = 0.325
-        self.lookahead = 0.6
-        self.thresh = 0.01
+        self.lookahead = 1.0
+        self.thresh = 0.05
         self.speed = 0.5
+        self.rel_x = 0.0
         self.h, err = cv2.findHomography(np_pts_image, np_pts_ground)
         self.bridge = CvBridge()
         
@@ -59,11 +72,12 @@ class CityDriving:
         orange_locations = self.convert_to_real(bw_img)
         rel_x = self.find_rel_x(orange_locations)
         ang = self.PPController(rel_x)
-        self.ang_pub.publish(ang)
+        #self.ang_pub.publish(ang)
         drive_cmd = AckermannDriveStamped()
         drive_cmd.drive.speed = self.speed
         drive_cmd.drive.steering_angle = ang
-        self.drive_pub.publish(self.drive_cmd)
+        print(ang)
+        self.drive_pub.publish(drive_cmd)
 
     def cd_color_segmentation(self, img, template="optional"):
         hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
@@ -88,17 +102,19 @@ class CityDriving:
         low = self.lookahead - self.thresh
         high = self.lookahead + self.thresh
         distances = np.linalg.norm(orange_locations, axis=0)
-        indists = (distances<high) & (distances>low)
-        rel_xs = orange_locations[1,indists]
-        rel_x = -np.average(rel_xs)
-        #print(min(distances),max(distances))
+        indists = abs(distances-self.lookahead) <= self.thresh
+        rel_xs = orange_locations[1,indists] + 0.06
+        if rel_xs.size != 0:
+            rel_x = np.average(rel_xs)
+            self.rel_x = rel_x
+        #print(min(orange_locations[0,:]),max(orange_locations[0,:]))
         #print(rel_x)
-        return rel_x
+        return self.rel_x
 
     def PPController(self, rel_x):
         x = rel_x
-        tr = (self.lookahead**2)/(2*x) if x != 0 else 0 # Turning radius from relative x
-        ang = -np.arctan(self.wheelbase_length/tr) # Angle from turning radius
+        tr = (self.lookahead**2)/(2*x) if x != 0.0 else 0.0001 # Turning radius from relative x
+        ang = np.arctan(self.wheelbase_length/tr) # Angle from turning radius
         return ang
 
 if __name__=="__main__":
