@@ -1,5 +1,5 @@
 <launch>
-	<node pkg="final_race" type="rainbow_road.py" name="Rainbow_Road" output="screen">
+	<node pkg="final_race" type="rainbow_road.py" name="rainbow_road" output="screen">
 		<param name="pub_topic" value="/odom"/>
         <param name="sub_topic" value="/odom"/>
 	</node>
