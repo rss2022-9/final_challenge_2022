@@ -1,4 +1,7 @@
 <launch>
+	<node pkg="visual_servoing" name="homography_transformer" type="homography_transformer.py" output="screen">
+	</node>
+	
 	<node pkg="final_race" type="final_race.py" name="final_race" output="screen">
 		<param name="pub_topic" value="/odom"/>
         <param name="sub_topic" value="/odom"/>
