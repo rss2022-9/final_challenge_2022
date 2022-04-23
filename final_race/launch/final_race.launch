@@ -1,7 +1,7 @@
 <launch>
-	<!--Launch the zed camera-->
-	<inlcude file="$(find zed_wrapper)/launch/zed.launch"/> 
-	
+	<!-- Launch the zed camera
+	<inlcude file="$(find zed_wrapper)/launch/zed.launch"/>
+	 -->
 	<node pkg="visual_servoing" name="homography_transformer" type="homography_transformer.py" output="screen">
 	</node>
 	
