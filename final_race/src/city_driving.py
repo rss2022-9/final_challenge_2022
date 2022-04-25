@@ -30,7 +30,6 @@ class CityDriving:
     def __init__(self):
         if not len(PTS_GROUND_PLANE) == len(PTS_IMAGE_PLANE):
             rospy.logerr("ERROR: PTS_GROUND_PLANE and PTS_IMAGE_PLANE should be of same length")
-        
 
         #Initialize data into a homography matrix
         np_pts_ground = np.array(PTS_GROUND_PLANE)
