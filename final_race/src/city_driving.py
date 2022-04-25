@@ -44,12 +44,13 @@ class CityDriving:
         self.wheelbase_length = 0.325
         self.lookahead = 1.0
         self.thresh = 0.01
-        self.speed = 1.0
+        self.speed = 0.0
 
         self.h, err = cv2.findHomography(np_pts_image, np_pts_ground)
         self.bridge = CvBridge()
 
         self.image_sub = rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.follow_line)
+        self.debug_pub = rospy.Publisher("/debugging", String, queue_size=1)
         self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=1)
         
 
@@ -57,7 +58,9 @@ class CityDriving:
         img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         bw_img = self.cd_color_segmentation(img)
         orange_locations = self.convert_to_real(bw_img)
+        self.debug_pub.publish(str(orange_locations))
         rel_x = self.find_rel_x(orange_locations)
+        self.debug_pub.publish(str(rel_x))
         drive_cmd = self.PPController(rel_x)
         self.drive_pub.publish(drive_cmd)
 
@@ -82,21 +85,21 @@ class CityDriving:
         low = self.lookahead - self.thresh
         high = self.lookahead + self.thresh
         distances = np.linalg.norm(orange_locations, axis=0)
-        indists = (distances<high) & (sizes>low)
-        rel_xs = orange_locations[0,indists]
+        indists = (distances<high) & (distances>low)
+        rel_xs = orange_locations[1,indists]
         rel_x = np.average(rel_xs)
         return rel_x
 
     def PPController(self, rel_x):
-            x = rel_x
-            tr = (self.lookahead**2)/(2*x) if x != 0 else 0 # Turning radius from relative x
-            ang = -np.arctan(self.wheelbase_length/tr) # Angle from turning radius
-            output = ang
-            drive_cmd = AckermannDriveStamped()
-            drive_cmd.header.stamp = rospy.Time.now()
-            drive_cmd.header.frame_id = 'base_link'
-            drive_cmd.drive.speed = speed
-            drive_cmd.drive.steering_angle = output
+        x = rel_x
+        tr = (self.lookahead**2)/(2*x) if x != 0 else 0 # Turning radius from relative x
+        ang = -np.arctan(self.wheelbase_length/tr) # Angle from turning radius
+        output = ang
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.header.stamp = rospy.Time.now()
+        drive_cmd.header.frame_id = 'base_link'
+        drive_cmd.drive.speed = self.speed
+        drive_cmd.drive.steering_angle = output
         return drive_cmd
 
 if __name__=="__main__":
