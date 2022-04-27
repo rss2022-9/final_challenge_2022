@@ -108,7 +108,7 @@ class CityDriving:
             rel_x = np.average(rel_xs)
             self.rel_x = rel_x
         #print(min(orange_locations[0,:]),max(orange_locations[0,:]))
-        #print(rel_x)
+        #print(rel_x) 
         return self.rel_x
 
     def PPController(self, rel_x):
