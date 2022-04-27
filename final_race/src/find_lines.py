@@ -6,6 +6,7 @@
 
 import sys
 import math
+from turtle import left
 import cv2 as cv
 import numpy as np
 
@@ -20,7 +21,7 @@ def image_print(img):
 
     
 
-def find_lines(img):
+def find_lines(img, probabalisticHough = True):
     """
     Input:
 		img: np.3darray; the input image with a cone to be detected. BGR.
@@ -30,48 +31,102 @@ def find_lines(img):
                         all lines detected in the image
 
     """
+    
     # crop the upper 1/3 of the image to black
     shape = img.shape
-	# crop_start = int(5*shape[0]/6)
-	# for i in range(crop_start,shape[0]):
-	# 	orange_filter[i,:] =  0
+    print(shape)
     for i in range(0,int(shape[0])/2):
-		img[i,:] = 0
+      img[i,:] = 0
 
+    # ##filtering for white
+    # hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
-    ##filtering for white
-    hsv_img = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    # #define range of white
+    # sensitivity = 15
+    # lower_white = np.array([0,0,255-sensitivity])
+    # upper_white = np.array([255,sensitivity,255])
 
-    #define range of white
-    sensitivity = 15
-    lower_white = np.array([0,0,255-sensitivity])
-    upper_white = np.array([255,sensitivity,255])
+    # #threshold the hsv image to get only white
+    # mask = cv.inRange(hsv_img, lower_white, upper_white)
 
-    #threshold the hsv image to get only white
-    mask = cv.inRange(hsv_img, lower_white, upper_white)
+    # #bitwase-AND mask and original img
+    # res  = cv.bitwise_and(img, img, mask = mask)
 
-    #bitwase-AND mask and original img
-    res  = cv.bitwise_and(img, img, mask = mask)
-
-    ##end white filtering
+    # ##end white filtering
     
-    gray_img = cv.cvtColor(res, cv.COLOR_BGR2GRAY)
+    gray_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
     #img, threshold 1, threshold 2, apertureSize (for the Sobel operator)
-    edges = cv.Canny(gray_img, 50, 200, apertureSize = 3)
+    #increase min threshold to filter out gray lines
+    edges = cv.Canny(gray_img, 100, 200, apertureSize = 3)
     
     # Copy edges to the images that will display the results in BGR
+    cedges = cv.cvtColor(edges, cv.COLOR_GRAY2BGR)
     cedgesP = cv.cvtColor(edges, cv.COLOR_GRAY2BGR)
     
     lines_returned = []
-    #probabilitistic transform
-    linesP = cv.HoughLinesP(edges, 1, np.pi / 180, 200, None, 50, 10)
-    
-    if linesP is not None:
+
+
+    #standard hough transform
+
+    if (probabalisticHough):
+      #probabilitistic transform
+      linesP = cv.HoughLinesP(edges, 1, np.pi / 180, 200, None, 50, 10)
+      
+      if linesP is not None:
+        max_left_line_slope = 0 # has positive slope
+        min_right_line_slope = 0 # has negative slope
+        left_line = ((0,0),(0,0)) #(x,y)
+        right_line = ((0,0),(0,0))
+
         for i in range(0, len(linesP)):
             l = linesP[i][0]
-            lines_returned.append(((l[0], l[1]), (l[2], l[3])))
+            slope = (l[3] - l[1])/(l[2]-l[0])
+
+            if (slope > 0 and slope > max_left_line_slope):
+              max_left_line_slope = slope
+              left_line = ((l[0], l[1]), (l[2], l[3]))
+            elif (slope < 0 and slope < min_right_line_slope):
+              min_right_line_slope = slope
+              right_line = ((l[0], l[1]), (l[2], l[3]))
+            lines_returned.append(left_line)
+            lines_returned.append(right_line)
+
+            #lines_returned.append(((l[0], l[1]), (l[2], l[3]))) #if returning all lines
             #cv.line(cedgesP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+    else:
+      lines = cv.HoughLines(edges, 1, np.pi / 180, 150, None, 0, 0)
+      if lines is not None:
+        min_left_line_theta = 90 #
+        min_right_line_theta = 90 # (rho negative is right line)
+        left_line = ((0,0),(0,0)) 
+        right_line = ((0,0),(0,0))
+
+        for i in range(0, len(lines)):
+            rho = lines[i][0][0]
+            theta = lines[i][0][1]
+            a = math.cos(theta)
+            b = math.sin(theta)
+
+            
+            x0 = a * rho
+            y0 = b * rho
+            pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
+            pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
+
+
+            if (rho > 0 and theta < min_left_line_theta):
+              min_left_line_theta = theta
+              left_line = (pt1,pt2)
+            elif (rho < 0 and theta < min_right_line_theta):
+              min_right_line_theta = theta
+              right_line = (pt1,pt2)
+            lines_returned.append(left_line)
+            lines_returned.append(right_line)
+
+            #lines_returned.append((pt1,pt2))
+            #cv.line(cedges, pt1, pt2, (0,0,255), 3, cv.LINE_AA)
+
     
     # image_print([img, cedges])
     # cv.imshow("Source", img)
