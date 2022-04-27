@@ -1,28 +1,36 @@
+#!/usr/bin/env python
 
 import numpy as np
 import rospy
 import cv2
-import pdb
-import os
 
-from visual_servoing.msg import ConeLocation, ConeLocationPixel
 from ackermann_msgs.msg import AckermannDriveStamped
 from cv_bridge import CvBridge, CvBridgeError
-from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point
+from std_msgs.msg import String, Float32
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
-from psutil import OPENBSD
 
-PTS_IMAGE_PLANE = [[526.0, 286.0],
-                   [240.0, 287.0],
-                   [292.0, 243.0],
-                   [442.0, 243.0]]
 
-PTS_GROUND_PLANE = [[23.62, -9.75],
-                    [23.62, 9.75],
-                    [43.12, 9.75],
-                    [43.12, -9.75]]
+PTS_IMAGE_PLANE = [[343.0, 363.0],
+                   [139.0, 276.0],
+                   [347.0, 281.0],
+                   [562.0, 291.0],
+                   [229.0, 238.0],
+                   [349.0, 243.0],
+                   [472.0, 246.0],
+                   [263.0, 223.0],
+                   [347.0, 224.0],
+                   [432.0, 227.0]]
+
+PTS_GROUND_PLANE = [[8.4, 0.0],
+                   [21.25, 17.25],
+                   [21.25, 0.0],
+                   [21.25, -17.25],
+                   [42.5, 17.25],
+                   [42.5, 0.0],
+                   [42.5, -17.25],
+                   [63.75, 17.25],
+                   [63.75, 0.0],
+                   [63.75, -17.25]]
 
 METERS_PER_INCH = 0.0254
 
@@ -43,66 +51,76 @@ class CityDriving:
         drive_topic = rospy.get_param("~drive_topic", "/vesc/low_level/ackermann_cmd_mux/input/navigation")
         self.wheelbase_length = 0.325
         self.lookahead = 1.0
-        self.thresh = 0.01
-        self.speed = 0.0
-
+        self.thresh = 0.05
+        self.speed = 0.5
+        self.rel_x = 0.0
         self.h, err = cv2.findHomography(np_pts_image, np_pts_ground)
         self.bridge = CvBridge()
-
-        self.image_sub = rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.follow_line)
-        self.debug_pub = rospy.Publisher("/debugging", String, queue_size=1)
-        self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=1)
         
+        # Publishers
+        self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=10)
+        self.debug_pub = rospy.Publisher("/debugging", String, queue_size=10)
+        self.image_pub = rospy.Publisher("i_see", Image, queue_size=10)
+        self.ang_pub = rospy.Publisher("ang_here", Float32, queue_size=10)
 
+        # Subscribers
+        self.image_sub = rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.follow_line)
+        
     def follow_line(self,image_msg):
         img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         bw_img = self.cd_color_segmentation(img)
         orange_locations = self.convert_to_real(bw_img)
-        self.debug_pub.publish(str(orange_locations))
         rel_x = self.find_rel_x(orange_locations)
-        self.debug_pub.publish(str(rel_x))
-        drive_cmd = self.PPController(rel_x)
+        ang = self.PPController(rel_x)
+        #self.ang_pub.publish(ang)
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.drive.speed = self.speed
+        drive_cmd.drive.steering_angle = ang
+        print(ang)
         self.drive_pub.publish(drive_cmd)
 
     def cd_color_segmentation(self, img, template="optional"):
         hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-        lower_orange = np.array([5, 150, 150])  # 22-35 90-100 80-100
-        upper_orange = np.array([15, 255, 255])
+        lower_orange = np.array([0, 60, 70])  # 22-35 90-100 80-100
+        upper_orange = np.array([100, 255, 165])
         path_map = cv2.inRange(hsv_img,lower_orange, upper_orange)
+        imageout = self.bridge.cv2_to_imgmsg(path_map)
+        self.image_pub.publish(imageout)
         return path_map
 
     def convert_to_real(self,img):
         white_pix = np.argwhere(img == 255)
-        U, V = white_pix[:,0], white_pix[:,1]
+        V, U = white_pix[:,0], white_pix[:,1]
         ONES = np.ones(U.shape, dtype=np.float32)
         UV = np.array([U,V,ONES], dtype=np.float32)
         XY = np.einsum('ij,jk->ik', self.h, UV)
         scaling_factor = 1.0/XY[2,:]
-        orange_locations = XY[0:1,:] * scaling_factor[:, None]
-        return orange_locations
+        orange_locations = XY * scaling_factor
+        return orange_locations[0:2,:]
 
     def find_rel_x(self,orange_locations):
         low = self.lookahead - self.thresh
         high = self.lookahead + self.thresh
         distances = np.linalg.norm(orange_locations, axis=0)
-        indists = (distances<high) & (distances>low)
-        rel_xs = orange_locations[1,indists]
-        rel_x = np.average(rel_xs)
-        return rel_x
+        indists = abs(distances-self.lookahead) <= self.thresh
+        rel_xs = orange_locations[1,indists] + 0.06
+        if rel_xs.size != 0:
+            rel_x = np.average(rel_xs)
+            self.rel_x = rel_x
+        #print(min(orange_locations[0,:]),max(orange_locations[0,:]))
+        #print(rel_x)
+        return self.rel_x
 
     def PPController(self, rel_x):
         x = rel_x
-        tr = (self.lookahead**2)/(2*x) if x != 0 else 0 # Turning radius from relative x
-        ang = -np.arctan(self.wheelbase_length/tr) # Angle from turning radius
-        output = ang
-        drive_cmd = AckermannDriveStamped()
-        drive_cmd.header.stamp = rospy.Time.now()
-        drive_cmd.header.frame_id = 'base_link'
-        drive_cmd.drive.speed = self.speed
-        drive_cmd.drive.steering_angle = output
-        return drive_cmd
+        tr = (self.lookahead**2)/(2*x) if x != 0.0 else 0.0001 # Turning radius from relative x
+        ang = np.arctan(self.wheelbase_length/tr) # Angle from turning radius
+        return ang
 
 if __name__=="__main__":
-    rospy.init_node("city_driving")
-    pf = CityDriving()
-    rospy.spin()
+    try:
+        rospy.init_node("CityDriving", anonymous=True)
+        CityDriving()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
