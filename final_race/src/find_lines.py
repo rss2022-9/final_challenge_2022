@@ -22,7 +22,7 @@ def image_print(img):
 
     
 
-def find_lines(img, probabalisticHough = True):
+def find_lines(img, probabalisticHough = True, allLines=False):
     """
     Input:
 		img: np.3darray; the input image with a cone to be detected. BGR.
@@ -81,19 +81,23 @@ def find_lines(img, probabalisticHough = True):
 
         for i in range(0, len(linesP)):
             l = linesP[i][0]
-            slope = (l[3] - l[1])/(l[2]-l[0])
+            
+            #returning all lines
+            if (allLines):
+              lines_returned.append(((l[0], l[1]), (l[2], l[3])))
+              #cv.line(cedgesP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+            #returning two lines
+            else:
+              slope = (l[3] - l[1])/(l[2]-l[0])
+              if (slope > 0 and slope > max_left_line_slope):
+                max_left_line_slope = slope
+                left_line = ((l[0], l[1]), (l[2], l[3]))
+              elif (slope < 0 and slope < min_right_line_slope):
+                min_right_line_slope = slope
+                right_line = ((l[0], l[1]), (l[2], l[3]))
+              lines_returned.append(left_line)
+              lines_returned.append(right_line)
 
-            if (slope > 0 and slope > max_left_line_slope):
-              max_left_line_slope = slope
-              left_line = ((l[0], l[1]), (l[2], l[3]))
-            elif (slope < 0 and slope < min_right_line_slope):
-              min_right_line_slope = slope
-              right_line = ((l[0], l[1]), (l[2], l[3]))
-            lines_returned.append(left_line)
-            lines_returned.append(right_line)
-
-            #lines_returned.append(((l[0], l[1]), (l[2], l[3]))) #if returning all lines
-            #cv.line(cedgesP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
     #standard hough
     else:
       lines = cv.HoughLines(edges, 1, np.pi / 180, 150, None, 0, 0)
@@ -107,26 +111,27 @@ def find_lines(img, probabalisticHough = True):
             rho = lines[i][0][0]
             theta = lines[i][0][1]
             a = math.cos(theta)
-            b = math.sin(theta)
-
-            
+            b = math.sin(theta) 
             x0 = a * rho
             y0 = b * rho
             pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
             pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
 
+            #all lines
+            if (allLines):
+              lines_returned.append((pt1,pt2))
+              #cv.line(cedges, pt1, pt2, (0,0,255), 3, cv.LINE_AA)
+            #two lines
+            else:
+              if (rho > 0 and theta < min_left_line_theta):
+                min_left_line_theta = theta
+                left_line = (pt1,pt2)
+              elif (rho < 0 and theta < min_right_line_theta):
+                min_right_line_theta = theta
+                right_line = (pt1,pt2)
+              lines_returned.append(left_line)
+              lines_returned.append(right_line)
 
-            if (rho > 0 and theta < min_left_line_theta):
-              min_left_line_theta = theta
-              left_line = (pt1,pt2)
-            elif (rho < 0 and theta < min_right_line_theta):
-              min_right_line_theta = theta
-              right_line = (pt1,pt2)
-            lines_returned.append(left_line)
-            lines_returned.append(right_line)
-
-            #lines_returned.append((pt1,pt2))
-            #cv.line(cedges, pt1, pt2, (0,0,255), 3, cv.LINE_AA)
 
     
     # image_print([img, cedges])
@@ -135,9 +140,10 @@ def find_lines(img, probabalisticHough = True):
     # cv.imshow("Detected Lines (in red) - Probabilistic Line Transform", cedgesP)
     
     # cv.waitKey()
+    if (allLines):
+      lines_returned = sorted(lines_returned,key = lambda x: x[0][0])
 
-    return sorted(lines_returned,key = lambda x: x[0][0])
-
+    return lines_returned
 
 def find_intercept_point(line1, line2):
   """
