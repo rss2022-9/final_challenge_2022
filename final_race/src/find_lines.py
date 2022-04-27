@@ -9,6 +9,7 @@ import math
 from turtle import left
 import cv2 as cv
 import numpy as np
+from torch import true_divide
 
 def image_print(img):
 	"""
@@ -136,3 +137,49 @@ def find_lines(img, probabalisticHough = True):
     # cv.waitKey()
 
     return sorted(lines_returned,key = lambda x: x[0][0])
+
+
+def find_intercept_point(line1, line2):
+  """
+  line: (startpoint, endpoint)
+  return: intercept point (x,y)
+  """
+
+  startpoint1 = line1[0]
+  endpoint1   = line1[1]
+  startpoint2 = line2[0]
+  endpoint2   = line2[1]
+
+  x1 = startpoint1[0]
+  y1 = startpoint1[1]
+  x2 = startpoint2[0]
+  y2 = startpoint2[1]
+
+  slope1 = True
+  slope2 = True
+  if startpoint1[0] - endpoint1[0] is 0:
+    slope1 = False
+  if startpoint2[0] - endpoint2[0] is 0:
+    slope2 = False
+  
+  if slope1 is True and slope2 is True:
+    k1 = (startpoint1[1]-endpoint1[1])/(startpoint1[0]-endpoint1[0])
+    k2 = (startpoint2[1]-endpoint2[1])/(startpoint2[0]-endpoint2[0])
+    if k1 == k2:
+      print("Parallel lines detected")
+      return -1
+    x_intercept = (k1*x1-k2*x2+y2-y1)/(k1-k2)
+    y_intercept = k1*x_intercept-k1*x1+y1
+  elif slope1 is True and slope2 is False:
+    k1 = (startpoint1[1]-endpoint1[1])/(startpoint1[0]-endpoint1[0])
+    x_intercept = x2
+    y_intercept = k1*x_intercept + y1-k1*x1
+  elif slope1 is False and slope2 is True:
+    k2 = (startpoint2[1]-endpoint2[1])/(startpoint2[0]-endpoint2[0])
+    x_intercept = x1
+    y_intercept = k2*x_intercept + y2-k2*x2
+  else:
+    print("Parallel lines detected")
+    return -1
+
+  return (x_intercept, y_intercept)
