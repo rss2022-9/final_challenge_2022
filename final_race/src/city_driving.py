@@ -59,20 +59,17 @@ class CityDriving:
         
         # Publishers
         self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=10)
-        self.debug_pub = rospy.Publisher("/debugging", String, queue_size=10)
-        self.image_pub = rospy.Publisher("i_see", Image, queue_size=10)
-        self.ang_pub = rospy.Publisher("ang_here", Float32, queue_size=10)
+        self.image_pub = rospy.Publisher("path_seen", Image, queue_size=10)
 
         # Subscribers
         self.image_sub = rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.follow_line)
         
     def follow_line(self,image_msg):
-        img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
-        bw_img = self.cd_color_segmentation(img)
-        orange_locations = self.convert_to_real(bw_img)
-        rel_x = self.find_rel_x(orange_locations)
-        ang = self.PPController(rel_x)
-        #self.ang_pub.publish(ang)
+        img = self.bridge.imgmsg_to_cv2(image_msg, "bgr8") # Convert image to cv2
+        bw_img = self.cd_color_segmentation(img) # return b&w image with white being detected orange
+        orange_locations = self.convert_to_real(bw_img) # return real world location of orange points
+        rel_x = self.find_rel_x(orange_locations) # get relative x using locations and lookahead circle
+        ang = self.PPController(rel_x) # drive angle given relative x of target point
         drive_cmd = AckermannDriveStamped()
         drive_cmd.drive.speed = self.speed
         drive_cmd.drive.steering_angle = ang
@@ -80,6 +77,12 @@ class CityDriving:
         self.drive_pub.publish(drive_cmd)
 
     def cd_color_segmentation(self, img, template="optional"):
+        """
+        Filter out the orange parts of the image and return
+        the mask as a black and white image where white is
+        the orange portions of the image, which in this case gives us
+        the line to follow.
+        """
         hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
         lower_orange = np.array([0, 60, 70])  # 22-35 90-100 80-100
         upper_orange = np.array([100, 255, 165])
@@ -89,6 +92,11 @@ class CityDriving:
         return path_map
 
     def convert_to_real(self,img):
+        """
+         Return the real world locaation of the white points in an image
+         in this caase giving us the real world coordinates of the points
+         on the orange line.
+        """
         white_pix = np.argwhere(img == 255)
         V, U = white_pix[:,0], white_pix[:,1]
         ONES = np.ones(U.shape, dtype=np.float32)
@@ -99,6 +107,11 @@ class CityDriving:
         return orange_locations[0:2,:]
 
     def find_rel_x(self,orange_locations):
+        """
+        Using the real world location of the orange points filter
+        out those in the look ahead circle and average them to get the
+        relative x position of the target point on the orange path
+        """
         low = self.lookahead - self.thresh
         high = self.lookahead + self.thresh
         distances = np.linalg.norm(orange_locations, axis=0)
@@ -107,11 +120,14 @@ class CityDriving:
         if rel_xs.size != 0:
             rel_x = np.average(rel_xs)
             self.rel_x = rel_x
-        #print(min(orange_locations[0,:]),max(orange_locations[0,:]))
-        #print(rel_x) 
         return self.rel_x
 
     def PPController(self, rel_x):
+        """
+        Pure pursuit controller which takes in the relative x of a 
+        target point and returns the appropriate drive angle current
+        convention is x positive left to right
+        """
         x = rel_x
         tr = (self.lookahead**2)/(2*x) if x != 0.0 else 0.0001 # Turning radius from relative x
         ang = np.arctan(self.wheelbase_length/tr) # Angle from turning radius
