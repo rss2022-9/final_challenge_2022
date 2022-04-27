@@ -1,5 +1,9 @@
 <launch>
+	<!-- <node pkg="final_race" type="stop_detector.py" name="stop_detector" output="screen">
+		<param name="drive_topic" value="/vesc/high_level/ackermann_cmd_mux/input/nav_0" />
+	</node> -->
 	<node pkg="final_race" type="city_driving.py" name="city_driving" output="screen">
 		<param name="drive_topic" value="/vesc/low_level/ackermann_cmd_mux/input/navigation"/>
+		<!-- <param name="drive_topic" value="/vesc/high_level/ackermann_cmd_mux/input/nav_1"/> -->
 	</node>
 </launch>
