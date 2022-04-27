@@ -17,8 +17,8 @@ class FinalRace(object):
         self.target_sub = rospy.Subscriber(self.target_topic, ConeLocation, self.PPController)
         self.drive_pub = rospy.Publisher(self.drive_topic, AckermannDriveStamped, queue_size=1)
         
-        self.lookahead        = 1.0
-        self.speed            = 1.0
+        self.lookahead        = 2.0
+        self.speed            = 4.0
         self.wheelbase_length = 0.325
 
         # Things to do:
@@ -36,17 +36,17 @@ class FinalRace(object):
         the camera.
         Units are in meters.
         """
-        x = target.x_pos
-        y = target.y_pos
-        x = -y # from camera frame to PP frame
-        tr = (self.lookahead**2)/(2*x) if x != 0 else 0 # Turning radius from relative x
+        x = -target.y_pos # from camera frame to PP frame
+        print("x: ", x)
+        y = target.x_pos # from camera frame to PP frame
+        mag = np.linalg.norm([x,y])
+        tr = (mag**2)/(2*x) if x != 0 else 0 # Turning radius from relative x
         ang = -np.arctan(self.wheelbase_length/tr) # Angle from turning radius
-        output = max(min(ang,0.34),-0.34)
         drive_cmd = AckermannDriveStamped()
         drive_cmd.header.stamp = rospy.Time.now()
         drive_cmd.header.frame_id = 'base_link'
         drive_cmd.drive.speed = self.speed
-        drive_cmd.drive.steering_angle = output
+        drive_cmd.drive.steering_angle = ang
         self.drive_pub.publish(drive_cmd)
 
 if __name__=="__main__":
