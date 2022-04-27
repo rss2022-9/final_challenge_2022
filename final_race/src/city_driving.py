@@ -50,7 +50,7 @@ class CityDriving:
 
         drive_topic = rospy.get_param("~drive_topic", "/vesc/low_level/ackermann_cmd_mux/input/navigation")
         self.wheelbase_length = 0.325
-        self.lookahead = 1.0
+        self.lookahead = 0.6
         self.thresh = 0.05
         self.speed = 0.5
         self.rel_x = 0.0
