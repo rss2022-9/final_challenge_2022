@@ -68,8 +68,7 @@ def find_lines(img, probabalisticHough = True):
     lines_returned = []
 
 
-    #standard hough transform
-
+    #probabilstic Hough
     if (probabalisticHough):
       #probabilitistic transform
       linesP = cv.HoughLinesP(edges, 1, np.pi / 180, 200, None, 50, 10)
@@ -95,6 +94,7 @@ def find_lines(img, probabalisticHough = True):
 
             #lines_returned.append(((l[0], l[1]), (l[2], l[3]))) #if returning all lines
             #cv.line(cedgesP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+    #standard hough
     else:
       lines = cv.HoughLines(edges, 1, np.pi / 180, 150, None, 0, 0)
       if lines is not None:
