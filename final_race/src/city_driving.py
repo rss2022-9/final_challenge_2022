@@ -50,7 +50,7 @@ class CityDriving:
 
         drive_topic = rospy.get_param("~drive_topic", "/vesc/low_level/ackermann_cmd_mux/input/navigation")
         self.wheelbase_length = 0.325
-        self.lookahead = 0.6
+        self.lookahead = 0.5
         self.thresh = 0.05
         self.speed = 0.5
         self.rel_x = 0.0
@@ -73,7 +73,7 @@ class CityDriving:
         drive_cmd = AckermannDriveStamped()
         drive_cmd.drive.speed = self.speed
         drive_cmd.drive.steering_angle = ang
-        print(ang)
+        #print(ang)
         self.drive_pub.publish(drive_cmd)
 
     def cd_color_segmentation(self, img, template="optional"):
