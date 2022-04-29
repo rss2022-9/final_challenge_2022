@@ -2,9 +2,12 @@
 	<node pkg="final_race" type="stop_detector.py" name="stop_detector" output="screen">
 		<param name="drive_sub_topic" value="/vesc/low_level/ackermann_cmd_mux/input/navigation" />
 		<param name="drive_topic" value="/vesc/low_level/ackermann_cmd_mux/input/safety" />
+		<param name="stop_dist" value="100"/>
+		<param name="wait_time" value="1.0"/>
+		<param name="reset_time" value="3.0"/>
 	</node>
 	<node pkg="final_race" type="city_driving.py" name="city_driving" output="screen">
+		<param name="city_speed" value="0.8"/>
 		<param name="drive_topic" value="/vesc/low_level/ackermann_cmd_mux/input/navigation"/>
-		<!-- <param name="drive_topic" value="/vesc/high_level/ackermann_cmd_mux/input/nav_1"/> -->
 	</node>
 </launch>

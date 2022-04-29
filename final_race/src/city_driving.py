@@ -50,16 +50,17 @@ class CityDriving:
 
         drive_topic = rospy.get_param("~drive_topic", "/vesc/low_level/ackermann_cmd_mux/input/navigation")
         self.wheelbase_length = 0.325
-        self.lookahead = 0.5
+        self.lookahead = 0.6
         self.thresh = 0.05
-        self.speed = 0.5
+        self.speed = rospy.get_param("~city_speed", 0.5)
         self.rel_x = 0.0
         self.h, err = cv2.findHomography(np_pts_image, np_pts_ground)
         self.bridge = CvBridge()
-        
+
         # Publishers
         self.drive_pub = rospy.Publisher(drive_topic, AckermannDriveStamped, queue_size=10)
         self.image_pub = rospy.Publisher("path_seen", Image, queue_size=10)
+        self.error_pub = rospy.Publisher("city_path_error", Float32, queue_size=10)
 
         # Subscribers
         self.image_sub = rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, self.follow_line)
@@ -75,6 +76,7 @@ class CityDriving:
         drive_cmd.drive.steering_angle = ang
         #print(ang)
         self.drive_pub.publish(drive_cmd)
+        self.error_pub.publish(self.rel_x)
 
     def cd_color_segmentation(self, img, template="optional"):
         """

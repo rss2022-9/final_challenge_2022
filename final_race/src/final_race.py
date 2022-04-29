@@ -5,6 +5,7 @@ import numpy as np
 from nav_msgs.msg import Odometry
 from ackermann_msgs.msg import AckermannDriveStamped
 from visual_servoing.msg import ConeLocation, ConeLocationPixel
+from std_msgs.msg import Float32
 
 class FinalRace(object):
     """
@@ -16,6 +17,7 @@ class FinalRace(object):
 
         self.target_sub = rospy.Subscriber(self.target_topic, ConeLocation, self.PPController)
         self.drive_pub = rospy.Publisher(self.drive_topic, AckermannDriveStamped, queue_size=1)
+        self.error_pub = rospy.Publisher("track_path_error", Float32, queue_size=10)
         
         self.lookahead        = 2.0
         self.speed            = 4.0
@@ -48,6 +50,7 @@ class FinalRace(object):
         drive_cmd.drive.speed = self.speed
         drive_cmd.drive.steering_angle = ang
         self.drive_pub.publish(drive_cmd)
+        self.error_pub.publish(x)
 
 if __name__=="__main__":
     rospy.init_node("final_race")
