@@ -21,12 +21,9 @@ class StopDetector:
         #Expected size (in pixels) of the bounding box at the correct stopping distance
         self.stop_height = 50
         self.stop_width = 50
-        self.stop_dist = rospy.get_param("~stop_dist", 100)
 
         #Time stamp for calculating durations
         self.prev_time = rospy.get_time()
-        self.wait_time = rospy.get_param("~wait_time", 1.0) #Wait at each sign for wait_time seconds
-        self.reset_time = rospy.get_param("~reset_time", 3.0) #Don't stop again for at least reset_time seconds
         
         self.detector_sub = rospy.Subscriber(detector_topic, Float32MultiArray, self.check_state)
         self.drive_sub = rospy.Subscriber(drive_sub_topic, AckermannDriveStamped, self.callback)
@@ -55,7 +52,7 @@ class StopDetector:
         width = bbox[2] - bbox[0]
 
         #If the stop sign is roughly the right distance away, stop the car
-        if abs(height - self.stop_height) < 100 and abs(width - self.stop_width) < 100:
+        if abs(height - self.stop_height) < rospy.get_param("~stop_dist", 100) and abs(width - self.stop_width) < rospy.get_param("~stop_dist", 100):
             self.prev_time = rospy.get_time()
             self.state = "Waiting"
             rospy.loginfo("Swtiching to waiting")
@@ -64,7 +61,7 @@ class StopDetector:
 
     def wait(self):
         #Keep the car stopped until wait_time has passed
-        if rospy.get_time() - self.prev_time > self.wait_time:
+        if rospy.get_time() - self.prev_time > rospy.get_param("~wait_time", 1.0):
             self.prev_time = rospy.get_time()
             self.state = "Starting"
             rospy.loginfo("Swtiching to starting")
@@ -73,7 +70,7 @@ class StopDetector:
 
     def start(self):
         #Wait until reset_time has passed before searching for a stop sign again
-        if rospy.get_time() - self.prev_time > self.reset_time:
+        if rospy.get_time() - self.prev_time > rospy.get_param("~reset_time", 3.0):
             self.state = "Searching"
             rospy.loginfo("Swtiching to searching")
         else:

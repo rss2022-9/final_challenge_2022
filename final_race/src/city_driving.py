@@ -52,7 +52,7 @@ class CityDriving:
         self.wheelbase_length = 0.325
         self.lookahead = 0.6
         self.thresh = 0.05
-        self.speed = rospy.get_param("~city_speed", 0.5)
+        #self.speed = rospy.get_param("~city_speed", 0.5) #Moved the speed setting down to the line where it's used so I could use rosparam
         self.rel_x = 0.0
         self.h, err = cv2.findHomography(np_pts_image, np_pts_ground)
         self.bridge = CvBridge()
@@ -72,7 +72,7 @@ class CityDriving:
         rel_x = self.find_rel_x(orange_locations) # get relative x using locations and lookahead circle
         ang = self.PPController(rel_x) # drive angle given relative x of target point
         drive_cmd = AckermannDriveStamped()
-        drive_cmd.drive.speed = self.speed
+        drive_cmd.drive.speed = rospy.get_param("~city_speed", 0.5)
         drive_cmd.drive.steering_angle = ang
         #print(ang)
         self.drive_pub.publish(drive_cmd)
