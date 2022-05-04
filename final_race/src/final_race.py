@@ -20,7 +20,7 @@ class FinalRace(object):
         self.error_pub = rospy.Publisher("track_path_error", Float32, queue_size=10)
         
         self.lookahead        = 2.0
-        self.speed            = 4.0
+        self.speed            = 2.0
         self.wheelbase_length = 0.325
 
         # Things to do:
@@ -40,6 +40,7 @@ class FinalRace(object):
         """
         x = -target.y_pos # from camera frame to PP frame
         print("x: ", x)
+        # x = x - 0.035
         y = target.x_pos # from camera frame to PP frame
         mag = np.linalg.norm([x,y])
         tr = (mag**2)/(2*x) if x != 0 else 0 # Turning radius from relative x

@@ -50,7 +50,6 @@ class CityDriving:
 
         drive_topic = rospy.get_param("~drive_topic", "/vesc/low_level/ackermann_cmd_mux/input/navigation")
         self.wheelbase_length = 0.325
-        self.lookahead = 0.6
         self.thresh = 0.05
         #self.speed = rospy.get_param("~city_speed", 0.5) #Moved the speed setting down to the line where it's used so I could use rosparam
         self.rel_x = 0.0
@@ -86,8 +85,11 @@ class CityDriving:
         the line to follow.
         """
         hsv_img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-        lower_orange = np.array([0, 60, 70])  # 22-35 90-100 80-100
-        upper_orange = np.array([100, 255, 165])
+        # lower_orange = np.array([0, 60, 70])  # 22-35 90-100 80-100
+        # upper_orange = np.array([100, 255, 165])
+        # rospy.loginfo(hsv_img)
+        lower_orange = np.array([10, 140, 160])  # 26-32, 98-99, 100
+        upper_orange = np.array([22, 255, 255])
         path_map = cv2.inRange(hsv_img,lower_orange, upper_orange)
         imageout = self.bridge.cv2_to_imgmsg(path_map)
         self.image_pub.publish(imageout)
@@ -114,11 +116,12 @@ class CityDriving:
         out those in the look ahead circle and average them to get the
         relative x position of the target point on the orange path
         """
+        self.lookahead = rospy.get_param("~lookahead", 0.5)
         low = self.lookahead - self.thresh
         high = self.lookahead + self.thresh
         distances = np.linalg.norm(orange_locations, axis=0)
         indists = abs(distances-self.lookahead) <= self.thresh
-        rel_xs = orange_locations[1,indists] + 0.06
+        rel_xs = orange_locations[1,indists] + 0.05
         if rel_xs.size != 0:
             rel_x = np.average(rel_xs)
             self.rel_x = rel_x

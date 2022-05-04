@@ -48,16 +48,16 @@ class StopDetector:
             self.start()
 
     def search(self, bbox):
-        height = bbox[3] - bbox[1]
-        width = bbox[2] - bbox[0]
+        # height = bbox[3] - bbox[1]
+        # width = bbox[2] - bbox[0]
 
         #If the stop sign is roughly the right distance away, stop the car
-        if abs(height - self.stop_height) < rospy.get_param("~stop_dist", 100) and abs(width - self.stop_width) < rospy.get_param("~stop_dist", 100):
-            self.prev_time = rospy.get_time()
-            self.state = "Waiting"
-            rospy.loginfo("Swtiching to waiting")
-        else:
-            self.state = "Searching"
+        # if abs(height - self.stop_height) < rospy.get_param("~stop_dist", 100) and abs(width - self.stop_width) < rospy.get_param("~stop_dist", 100):
+        self.prev_time = rospy.get_time()
+        self.state = "Waiting"
+        rospy.loginfo("Swtiching to waiting")
+        # else:
+        #     self.state = "Searching"
 
     def wait(self):
         #Keep the car stopped until wait_time has passed
